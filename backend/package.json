@@ -1,0 +1,54 @@
+{
+  "name": "whatsapp-monitor-backend",
+  "version": "1.0.0",
+  "description": "WhatsApp Monitor - Backend API Service (Phase 1)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate": "node src/scripts/migrate.js",
+    "seed": "node src/scripts/seed.js",
+    "admin:reset": "node src/scripts/resetAdminPassword.js",
+    "clean:data": "node src/scripts/cleanTestData.js",
+    "test": "node tests/auth.test.js && node tests/salespersons.test.js && node tests/persistence.test.js && node tests/whatsapp.test.js && node tests/baileys.test.js && node tests/messages.test.js && node tests/chatViewer.test.js && node tests/reliability.test.js && node tests/productionAudit.test.js && node tests/pilotVerification.test.js && node tests/cleanDataAudit.test.js && node tests/phase11_identity_and_realtime.test.js && node tests/phase12_fast_qr_and_sync.test.js && node tests/phase13_pwa_and_responsive.test.js",
+    "test:auth": "node tests/auth.test.js",
+    "test:salespersons": "node tests/salespersons.test.js",
+    "test:persistence": "node tests/persistence.test.js",
+    "test:whatsapp": "node tests/whatsapp.test.js",
+    "test:baileys": "node tests/baileys.test.js",
+    "test:messages": "node tests/messages.test.js",
+    "test:chat": "node tests/chatViewer.test.js",
+    "test:reliability": "node tests/reliability.test.js",
+    "test:audit": "node tests/productionAudit.test.js",
+    "test:pilot": "node tests/pilotVerification.test.js",
+    "test:clean": "node tests/cleanDataAudit.test.js",
+    "test:phase11": "node tests/phase11_identity_and_realtime.test.js",
+    "test:phase12": "node tests/phase12_fast_qr_and_sync.test.js",
+    "test:phase13": "node tests/phase13_pwa_and_responsive.test.js"
+  },
+  "keywords": [
+    "whatsapp-monitor",
+    "express",
+    "postgresql",
+    "jwt",
+    "security"
+  ],
+  "author": "WhatsApp Monitor Team",
+  "license": "ISC",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "pg": "^8.11.5",
+    "pino": "^10.4.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

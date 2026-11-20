@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#075E54" />
+    <title>Offline • WhatsApp Enterprise Monitor</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #F0F2F5;
+        color: #111B21;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 24px;
+        text-align: center;
+      }
+      .card {
+        background: #FFFFFF;
+        max-width: 420px;
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        padding: 32px 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .icon-badge {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: #FEF2F2;
+        color: #EF4444;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+      .icon-badge svg {
+        width: 32px;
+        height: 32px;
+      }
+      h1 {
+        font-size: 20px;
+        font-weight: 700;
+        color: #0F172A;
+        margin-bottom: 8px;
+      }
+      p {
+        font-size: 14px;
+        color: #64748B;
+        line-height: 1.5;
+        margin-bottom: 24px;
+      }
+      .notice {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 12px;
+        color: #475569;
+        margin-bottom: 24px;
+        text-align: left;
+        width: 100%;
+      }
+      .notice strong {
+        color: #075E54;
+      }
+      button {
+        width: 100%;
+        min-height: 44px;
+        background: #075E54;
+        color: #FFFFFF;
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: background 0.2s;
+      }
+      button:hover {
+        background: #128C7E;
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="icon-badge">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.166a1 1 0 111.414 1.414L3 21" />
+        </svg>
+      </div>
+      <h1>No Internet Connection</h1>
+      <p>WhatsApp Enterprise Monitor requires an active network connection to stream real-time chats, messages, and device telemetry.</p>
+      
+      <div class="notice">
+        <strong>Security & Privacy Guard:</strong> For confidentiality and compliance, customer chat logs and WhatsApp session tokens are never stored in unencrypted offline browser caches.
+      </div>
+
+      <button onclick="window.location.reload()">
+        <span>Retry Connection</span>
+      </button>
+    </div>
+  </body>
+</html>
+
