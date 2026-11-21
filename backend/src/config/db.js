@@ -1,3 +1,9 @@
+// Prioritize IPv4 DNS lookups to avoid ENETUNREACH in IPv4-only container environments (e.g. Railway)
+const dns = require('dns');
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const { Pool } = require('pg');
 const config = require('./env');
 const bcrypt = require('bcryptjs');
@@ -5,26 +11,43 @@ const bcrypt = require('bcryptjs');
 let pool = null;
 let isConnected = false;
 let dbError = null;
+let lastReconnectAttempt = 0;
 
-// Configure PostgreSQL connection pool
-if (config.db.url) {
-  pool = new Pool({
-    connectionString: config.db.url,
-    ssl: config.db.ssl,
-  });
-} else {
-  pool = new Pool({
-    host: config.db.host,
-    port: config.db.port,
-    database: config.db.database,
-    user: config.db.user,
-    password: config.db.password,
-    ssl: config.db.ssl,
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
-  });
+// Helper to sanitize error messages so credentials/connection strings are never exposed
+function sanitizeError(msg) {
+  if (!msg) return null;
+  return String(msg)
+    .replace(/(postgres(?:ql)?:\/\/[^:]+:)[^@]+(@)/gi, '$1*****$2')
+    .replace(/password=[^\s;]+/gi, 'password=*****');
 }
+
+// Build PostgreSQL connection pool configuration
+const poolConfig = {
+  host: config.db.host,
+  port: config.db.port,
+  database: config.db.database,
+  user: config.db.user,
+  password: config.db.password,
+  ssl: config.db.ssl,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+};
+
+// Fallback to connectionString if provided and host wasn't parsed
+if (config.db.url && (!poolConfig.host || poolConfig.host === 'localhost')) {
+  poolConfig.connectionString = config.db.url;
+}
+
+pool = new Pool(poolConfig);
+
+// Catch unexpected idle client errors without crashing the process
+pool.on('error', (err) => {
+  const sanitized = sanitizeError(err.message);
+  console.error('[DB Pool Error] Unexpected idle client error:', sanitized);
+  isConnected = false;
+  dbError = sanitized;
+});
 
 // In-memory fallback storage used ONLY when PostgreSQL is unreachable (e.g. offline dev/evaluation)
 const crypto = require('crypto');
@@ -59,7 +82,7 @@ async function initMockStore() {
   mockStore.initialized = true;
 }
 
-// Test connection on startup
+// Test connection on startup or health probe
 async function testConnection() {
   try {
     const client = await pool.connect();
@@ -71,22 +94,42 @@ async function testConnection() {
     return { connected: true, timestamp: res.rows[0].now, database: res.rows[0].db };
   } catch (err) {
     isConnected = false;
-    dbError = err.message;
+    dbError = sanitizeError(err.message);
     const isProduction = config.env === 'production' || process.env.DB_REQUIRE_REAL === 'true';
     if (isProduction) {
-      console.error(`[DATABASE ERROR] PostgreSQL connection failed in production mode: ${err.message}`);
-      console.error('[DATABASE NOTICE] In-memory fallback is disabled in production. Ensure DATABASE_URL is configured.');
-      return { connected: false, error: err.message, fallback: false };
+      console.error(`[DATABASE ERROR] PostgreSQL connection failed in production mode: ${dbError}`);
+      console.error('[DATABASE NOTICE] In-memory fallback is strictly disabled in production. Running in safe disconnected mode.');
+      return { connected: false, error: dbError, fallback: false };
     }
-    console.warn(`[DB WARNING] PostgreSQL connection failed: ${err.message}`);
+    console.warn(`[DB WARNING] PostgreSQL connection failed: ${dbError}`);
     console.warn('[DB WARNING] Operating with in-memory resilient fallback for development.');
     await initMockStore();
-    return { connected: false, error: err.message, fallback: true };
+    return { connected: false, error: dbError, fallback: true };
   }
 }
 
 // Standard parameterized query wrapper
 async function query(text, params = []) {
+  if (!isConnected && pool) {
+    const now = Date.now();
+    // Throttled on-demand reconnect attempt every 5 seconds
+    if (now - lastReconnectAttempt > 5000) {
+      lastReconnectAttempt = now;
+      try {
+        const client = await pool.connect();
+        const testRes = await client.query('SELECT 1');
+        client.release();
+        if (testRes) {
+          isConnected = true;
+          dbError = null;
+          console.log('[DB] PostgreSQL reconnected successfully on demand');
+        }
+      } catch (reconnectErr) {
+        dbError = sanitizeError(reconnectErr.message);
+      }
+    }
+  }
+
   if (isConnected) {
     const start = Date.now();
     try {
@@ -94,7 +137,7 @@ async function query(text, params = []) {
       const duration = Date.now() - start;
       return res;
     } catch (err) {
-      console.error('[DB Query Error]:', err.message);
+      console.error('[DB Query Error]:', sanitizeError(err.message));
       throw err;
     }
   }
@@ -102,7 +145,7 @@ async function query(text, params = []) {
   // Resilient fallback logic when PostgreSQL is offline (development only)
   const isProduction = config.env === 'production' || process.env.DB_REQUIRE_REAL === 'true';
   if (isProduction) {
-    throw new Error(`Database unavailable in production mode. Fallback storage is strictly prohibited. Error: ${dbError}`);
+    throw new Error(`Database unavailable in production mode. Fallback storage is strictly prohibited. Error: ${dbError || 'Not connected'}`);
   }
   await initMockStore();
   const normalized = text.toLowerCase().replace(/\s+/g, ' ');
@@ -924,6 +967,6 @@ module.exports = {
     database: config.db.database,
     host: config.db.host,
     port: config.db.port,
-    error: dbError,
+    error: sanitizeError(dbError),
   }),
 };

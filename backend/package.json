@@ -10,7 +10,7 @@
     "seed": "node src/scripts/seed.js",
     "admin:reset": "node src/scripts/resetAdminPassword.js",
     "clean:data": "node src/scripts/cleanTestData.js",
-    "test": "node tests/auth.test.js && node tests/salespersons.test.js && node tests/persistence.test.js && node tests/whatsapp.test.js && node tests/baileys.test.js && node tests/messages.test.js && node tests/chatViewer.test.js && node tests/reliability.test.js && node tests/productionAudit.test.js && node tests/pilotVerification.test.js && node tests/cleanDataAudit.test.js && node tests/phase11_identity_and_realtime.test.js && node tests/phase12_fast_qr_and_sync.test.js && node tests/phase13_pwa_and_responsive.test.js",
+    "test": "node tests/dbConfig.test.js && node tests/auth.test.js && node tests/salespersons.test.js && node tests/persistence.test.js && node tests/whatsapp.test.js && node tests/baileys.test.js && node tests/messages.test.js && node tests/chatViewer.test.js && node tests/reliability.test.js && node tests/productionAudit.test.js && node tests/pilotVerification.test.js && node tests/cleanDataAudit.test.js && node tests/phase11_identity_and_realtime.test.js && node tests/phase12_fast_qr_and_sync.test.js && node tests/phase13_pwa_and_responsive.test.js",
     "test:auth": "node tests/auth.test.js",
     "test:salespersons": "node tests/salespersons.test.js",
     "test:persistence": "node tests/persistence.test.js",

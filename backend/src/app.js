@@ -16,6 +16,11 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
+// Configure trust proxy for reverse proxies (Railway edge proxy / Cloudflare)
+// Required by express-rate-limit to extract client IP correctly from X-Forwarded-For
+// and resolve ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+app.set('trust proxy', 1);
+
 // Security HTTP headers with Helmet
 app.use(
   helmet({

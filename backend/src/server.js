@@ -1,3 +1,9 @@
+// Prioritize IPv4 DNS lookups to prevent ENETUNREACH in IPv4-only container environments (e.g. Railway)
+const dns = require('dns');
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const app = require('./app');
 const config = require('./config/env');
 const db = require('./config/db');

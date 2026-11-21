@@ -1,8 +1,32 @@
 const dotenv = require('dotenv');
 const path = require('path');
 
-// Load environment variables from .env file
+// Load environment variables from .env file (support both root and backend directory)
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
+// Safe URL parsing for DATABASE_URL with percent-decoded credentials
+function parseDatabaseUrl(rawUrl) {
+  if (!rawUrl) return null;
+  try {
+    const parsed = new URL(rawUrl);
+    return {
+      host: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : 5432,
+      database: parsed.pathname ? parsed.pathname.replace(/^\//, '') : 'postgres',
+      user: parsed.username ? decodeURIComponent(parsed.username) : undefined,
+      password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+      sslRequired:
+        parsed.searchParams.get('sslmode') === 'require' ||
+        rawUrl.includes('supabase') ||
+        rawUrl.includes('pooler'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+const parsedDbUrl = parseDatabaseUrl(process.env.DATABASE_URL);
 
 const config = {
   env: process.env.NODE_ENV || 'development',
@@ -13,16 +37,19 @@ const config = {
     expiresIn: process.env.JWT_EXPIRES_IN || '24h',
   },
   db: {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    database: process.env.DB_NAME || 'whatsapp_monitor',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
+    host: parsedDbUrl?.host || process.env.DB_HOST || 'localhost',
+    port: parsedDbUrl?.port || parseInt(process.env.DB_PORT || '5432', 10),
+    database: parsedDbUrl?.database || process.env.DB_NAME || 'whatsapp_monitor',
+    user: parsedDbUrl?.user || process.env.DB_USER || 'postgres',
+    password: parsedDbUrl?.password || process.env.DB_PASSWORD || 'postgres',
     ssl:
       process.env.DB_SSL === 'true' ||
+      parsedDbUrl?.sslRequired ||
       (process.env.DATABASE_URL &&
         (process.env.DATABASE_URL.includes('supabase') ||
-          process.env.DATABASE_URL.includes('sslmode=require')))
+          process.env.DATABASE_URL.includes('sslmode=require'))) ||
+      (process.env.DB_HOST &&
+        (process.env.DB_HOST.includes('supabase') || process.env.DB_HOST.includes('pooler')))
         ? { rejectUnauthorized: false }
         : false,
     url: process.env.DATABASE_URL || null,

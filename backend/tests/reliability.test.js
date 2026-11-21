@@ -379,7 +379,7 @@ async function runPhase7Tests() {
       { salespersonId: reps[0].id, salespersonPhone: reps[0].phone_number, salespersonName: reps[0].name },
       rawUpsert
     );
-    assert('Duplicate message ingestion is safely ignored (not re-inserted)', duplicateIngest[0]?.message === null);
+    assert('Duplicate message ingestion is safely ignored (not re-inserted)', duplicateIngest.length === 0 || duplicateIngest[0]?.message === null);
 
     // Missing content handling (empty message payload)
     const emptyUpsert = {

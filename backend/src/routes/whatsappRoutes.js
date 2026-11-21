@@ -68,8 +68,9 @@ router.get('/live-stream', verifyStreamTicket, (req, res) => {
   const onMessagePersisted = (persistedData) => {
     try {
       // Diagnostic Structured Log
-      console.log(`[SSE Broadcast][${clientId}] Pushing new_message event for rep ${persistedData.salespersonId}`);
-      res.write(`data: ${JSON.stringify(persistedData)}\n\n`);
+      console.log(`[SSE Broadcast][${clientId}] Pushing new_message event for rep ${persistedData.salespersonId || persistedData.message?.salesperson_id}`);
+      const payload = persistedData.type ? persistedData : { type: 'new_message', payload: persistedData };
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
     } catch {
       // Stream write error caught safely
     }
