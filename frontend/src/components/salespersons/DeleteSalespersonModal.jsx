@@ -14,22 +14,19 @@ export default function DeleteSalespersonModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden max-h-[92vh] flex flex-col">
         {/* Danger Header */}
-        <div className="p-4 sm:p-5 bg-rose-500/10 border-b border-rose-200/60 flex items-start gap-3.5 shrink-0">
+        <div className="p-4 sm:p-5 bg-rose-500/10 border-b border-rose-200/60 flex items-center gap-3.5 shrink-0">
           <div className="p-2.5 rounded-full bg-rose-100 text-rose-700 shrink-0">
             <Trash2 className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-bold text-gray-900 leading-tight">
-              Delete Salesperson & Purge Data
+              Delete Salesperson
             </h3>
-            <p className="text-xs text-rose-800 mt-1">
-              Permanent removal of salesperson and all associated data.
-            </p>
           </div>
           <button
             onClick={onClose}
             disabled={loading}
-            className="text-gray-400 hover:text-gray-600 min-w-[44px] min-h-[44px] -mr-2 -mt-2 flex items-center justify-center cursor-pointer"
+            className="text-gray-400 hover:text-gray-600 min-w-[44px] min-h-[44px] -mr-2 flex items-center justify-center cursor-pointer"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" />

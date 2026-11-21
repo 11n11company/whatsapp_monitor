@@ -6,7 +6,6 @@ import {
   User,
   Eye,
   EyeOff,
-  ShieldCheck,
   AlertCircle,
   PhoneCall,
   ArrowRight,
@@ -75,29 +74,19 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-[#F0F2F5] px-3.5 sm:px-6 py-6 sm:py-12">
-      {/* Brand Header */}
-      <div className="w-full max-w-md mb-6 text-center">
-        <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#075E54] text-white shadow-lg shadow-emerald-950/20 mb-3">
-          <PhoneCall className="w-7 h-7 sm:w-8 sm:h-8 text-[#25D366]" />
-        </div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-          WhatsApp Monitor
-        </h1>
-        <p className="text-xs sm:text-sm text-gray-600 mt-1">
-          Enterprise Team Monitoring Platform
-        </p>
-      </div>
-
-      {/* Login Card */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-gray-200/60 border border-gray-200/80 p-5 sm:p-8">
-        <div className="flex items-center justify-between pb-4 sm:pb-5 mb-4 sm:mb-5 border-b border-gray-100">
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-gray-900">Administrator Sign In</h2>
-            <p className="text-xs text-gray-500">Sign in to access your monitoring dashboard</p>
+      {/* Login Card with Integrated Logo & Brand */}
+      <div className="w-full max-w-md bg-white rounded-2xl sm:rounded-3xl shadow-xl shadow-gray-200/60 border border-gray-200/80 p-6 sm:p-8">
+        {/* Brand Header inside White Card */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#075E54] text-white shadow-lg shadow-emerald-950/20 mb-3">
+            <PhoneCall className="w-7 h-7 sm:w-8 sm:h-8 text-[#25D366]" />
           </div>
-          <div className="p-2 bg-emerald-50 text-[#075E54] rounded-lg">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+            WhatsApp Monitor
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            Enterprise Team Monitoring Platform
+          </p>
         </div>
 
         {/* Error notification */}
@@ -173,22 +162,17 @@ export default function LoginPage() {
             {submitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                <span>Authenticating...</span>
+                <span>Logging in...</span>
               </>
             ) : (
               <>
-                <span>Access Admin Console</span>
+                <span>Login</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>
         </form>
       </div>
-
-      {/* Footer copyright */}
-      <footer className="mt-8 text-center text-xs text-gray-400">
-        WhatsApp Monitor &copy; 2025 • Enterprise Monitoring Platform
-      </footer>
     </div>
   );
 }

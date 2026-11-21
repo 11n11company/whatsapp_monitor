@@ -156,7 +156,6 @@ export default function SalespersonModal({ isOpen, onClose, onSuccess, editTarge
                   setName(e.target.value);
                   if (validationErrors.name) setValidationErrors({ ...validationErrors, name: null });
                 }}
-                placeholder="e.g. Sales Representative Name"
                 className={`w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm transition-all focus:outline-none min-h-[44px] ${
                   validationErrors.name
                     ? 'border-rose-400 focus:ring-2 focus:ring-rose-200'
@@ -186,7 +185,6 @@ export default function SalespersonModal({ isOpen, onClose, onSuccess, editTarge
                   setPhoneNumber(e.target.value);
                   if (validationErrors.phoneNumber) setValidationErrors({ ...validationErrors, phoneNumber: null });
                 }}
-                placeholder="e.g. +1 555 234 5678 or +91 98765 43210"
                 className={`w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm font-mono transition-all focus:outline-none min-h-[44px] ${
                   validationErrors.phoneNumber
                     ? 'border-rose-400 focus:ring-2 focus:ring-rose-200'
@@ -194,12 +192,8 @@ export default function SalespersonModal({ isOpen, onClose, onSuccess, editTarge
                 }`}
               />
             </div>
-            {validationErrors.phoneNumber ? (
+            {validationErrors.phoneNumber && (
               <p className="text-xs text-rose-600 mt-1">{validationErrors.phoneNumber}</p>
-            ) : (
-              <p className="text-[11px] text-gray-500 mt-1">
-                Enter full international format with country code (+). Duplicates are rejected.
-              </p>
             )}
           </div>
 
@@ -222,7 +216,6 @@ export default function SalespersonModal({ isOpen, onClose, onSuccess, editTarge
                   setEmail(e.target.value);
                   if (validationErrors.email) setValidationErrors({ ...validationErrors, email: null });
                 }}
-                placeholder="e.g. rep@company.com"
                 className={`w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm transition-all focus:outline-none min-h-[44px] ${
                   validationErrors.email
                     ? 'border-rose-400 focus:ring-2 focus:ring-rose-200'

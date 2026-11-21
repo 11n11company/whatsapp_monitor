@@ -260,14 +260,6 @@ export default function WhatsAppConnectModal({
 
         {/* Content Body */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6">
-          {/* Advisory Notice */}
-          <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-start gap-3 text-xs text-emerald-950">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            <div className="leading-relaxed">
-              <span className="font-bold">Pair WhatsApp Device:</span> Open WhatsApp on the salesperson's phone, go to <strong>Linked Devices</strong> &rarr; <strong>Link a Device</strong>, and scan the QR code below.
-            </div>
-          </div>
-
           {/* Error alert */}
           {error && (
             <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
