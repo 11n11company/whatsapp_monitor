@@ -25,6 +25,44 @@ function getHistorySyncDays() {
   return 3;
 }
 
+/**
+ * Safely extracts a Unix timestamp in milliseconds from various WhatsApp/Baileys formats:
+ * - Number in seconds (10 digits, e.g. 1732185600) -> converts to ms
+ * - Number in milliseconds (13 digits, e.g. 1732185600000) -> keeps as ms
+ * - Protobuf Long instance with .toNumber()
+ * - Plain JSON Long object { low, high, unsigned }
+ * - String timestamp
+ * Falls back to Date.now() if invalid or missing
+ * @param {number|Object|string|null} rawTs
+ * @returns {number} Timestamp in milliseconds
+ */
+function extractTimestampMs(rawTs) {
+  if (!rawTs) return Date.now();
+  let val = rawTs;
+  if (typeof val === 'object' && val !== null) {
+    if (typeof val.toNumber === 'function') {
+      val = val.toNumber();
+    } else if (typeof val.low === 'number') {
+      val = val.high ? (val.high * 4294967296 + (val.low >>> 0)) : val.low;
+    } else {
+      val = Number(val);
+    }
+  } else if (typeof val === 'string') {
+    val = Number(val);
+  }
+
+  if (isNaN(val) || val <= 0) {
+    return Date.now();
+  }
+
+  // If timestamp is in seconds (< 100,000,000,000), convert to milliseconds
+  if (val < 100000000000) {
+    val = val * 1000;
+  }
+
+  return val;
+}
+
 // In-memory cache of known group subjects to avoid spamming socket.groupMetadata
 const groupSubjectCache = new Map();
 
@@ -97,13 +135,11 @@ class MessageHandler {
       if (!isLive) {
         const syncDays = getHistorySyncDays();
         const syncWindowMs = syncDays * 24 * 60 * 60 * 1000;
-        const msgTime = msg.messageTimestamp ? Number(msg.messageTimestamp) * 1000 : 0;
-        if (msgTime > 0) {
-          // Calculate reference time dynamically to handle any host clock skew
-          const refTime = Math.max(Date.now(), msgTime);
-          if (msgTime < refTime - syncWindowMs) {
-            continue;
-          }
+        const msgTime = extractTimestampMs(msg.messageTimestamp);
+        const now = Date.now();
+        const refTime = Math.max(now, msgTime);
+        if (msgTime < refTime - syncWindowMs) {
+          continue;
         }
       }
 
@@ -244,9 +280,8 @@ class MessageHandler {
       }
     }
 
-    const timestamp = msg.messageTimestamp
-      ? new Date(Number(msg.messageTimestamp) * 1000).toISOString()
-      : new Date().toISOString();
+    const timestampMs = extractTimestampMs(msg.messageTimestamp);
+    const timestamp = new Date(timestampMs).toISOString();
 
     return {
       salespersonId: context.salespersonId,
@@ -543,18 +578,24 @@ class MessageHandler {
     const syncWindowMs = syncDays * 24 * 60 * 60 * 1000;
 
     // Calculate reference time and window boundaries
+    const now = Date.now();
     let maxTs = 0;
     for (const m of messages) {
-      const ts = m.messageTimestamp ? Number(m.messageTimestamp) * 1000 : 0;
+      const ts = extractTimestampMs(m.messageTimestamp);
       if (ts > maxTs) maxTs = ts;
     }
-    const refTime = maxTs > 0 ? Math.max(Date.now(), maxTs) : Date.now();
+    const refTime = maxTs > 0 ? Math.max(now, maxTs) : now;
     const cutoffTime = refTime - syncWindowMs;
     const startDate = new Date(cutoffTime).toISOString();
     const endDate = new Date(refTime).toISOString();
 
     // 1. Initial State: Loading recent conversations
     const initialProgress = {
+      messagesReceived: messages.length,
+      messagesWithinWindow: 0,
+      messagesSaved: 0,
+      messagesSkippedDuplicate: 0,
+      messagesOutsideWindow: 0,
       messagesProcessed: 0,
       customersDiscovered: 0,
       totalMessagesInWindow: 0,
@@ -563,6 +604,7 @@ class MessageHandler {
       syncDays,
       lastSyncAt: new Date().toISOString(),
       error: null,
+      status: 'Loading recent conversations',
     };
     await WhatsAppSessionModel.updateSyncStatus(salespersonId, 'Loading recent conversations', initialProgress);
     messageEvents.emit('sync:progress', {
@@ -679,32 +721,42 @@ class MessageHandler {
 
     // 5. Filter historical messages to configured window (default 3 days)
     const recentMessages = [];
+    let messagesOutsideWindow = 0;
     if (Array.isArray(messages)) {
       for (const m of messages) {
-        const ts = m.messageTimestamp ? Number(m.messageTimestamp) * 1000 : 0;
+        const ts = extractTimestampMs(m.messageTimestamp);
         if (ts >= cutoffTime) {
           recentMessages.push(m);
+        } else {
+          messagesOutsideWindow++;
         }
       }
     }
 
     // Prioritize newest messages first!
     recentMessages.sort((a, b) => {
-      const tsA = a.messageTimestamp ? Number(a.messageTimestamp) : 0;
-      const tsB = b.messageTimestamp ? Number(b.messageTimestamp) : 0;
+      const tsA = extractTimestampMs(a.messageTimestamp);
+      const tsB = extractTimestampMs(b.messageTimestamp);
       return tsB - tsA;
     });
 
     console.log(
-      `[MessageHandler][${salespersonName}] Prioritizing ${recentMessages.length} of ${messages.length} messages within ${syncDays}-day window (newest first)`
+      `[MessageHandler][${salespersonName}] Prioritizing ${recentMessages.length} of ${messages.length} messages within ${syncDays}-day window (${messagesOutsideWindow} older messages outside window, newest first)`
     );
 
     // 6. Synchronizing recent messages in batches of 50
     const BATCH_SIZE = 50;
     let processedCount = 0;
+    let messagesSaved = 0;
+    let messagesSkippedDuplicate = 0;
     let hasBatchErrors = false;
 
     const syncInitialProgress = {
+      messagesReceived: messages.length,
+      messagesWithinWindow: recentMessages.length,
+      messagesSaved: 0,
+      messagesSkippedDuplicate: 0,
+      messagesOutsideWindow,
       messagesProcessed: 0,
       customersDiscovered,
       totalMessagesInWindow: recentMessages.length,
@@ -713,6 +765,7 @@ class MessageHandler {
       syncDays,
       lastSyncAt: new Date().toISOString(),
       error: null,
+      status: 'Synchronizing recent messages',
     };
     await WhatsAppSessionModel.updateSyncStatus(salespersonId, 'Synchronizing recent messages', syncInitialProgress);
     messageEvents.emit('sync:progress', {
@@ -726,14 +779,33 @@ class MessageHandler {
     for (let i = 0; i < recentMessages.length; i += BATCH_SIZE) {
       const batch = recentMessages.slice(i, i + BATCH_SIZE);
       try {
-        await this.handleMessagesUpsert(context, { messages: batch, type: 'append' });
+        const batchResults = await this.handleMessagesUpsert(context, { messages: batch, type: 'append' });
         processedCount += batch.length;
+        if (Array.isArray(batchResults)) {
+          for (const res of batchResults) {
+            if (res?.message) {
+              messagesSaved++;
+            } else {
+              messagesSkippedDuplicate++;
+            }
+          }
+          // Account for messages skipped by in-memory deduplication before DB insert
+          const notPersisted = batch.length - batchResults.length;
+          if (notPersisted > 0) {
+            messagesSkippedDuplicate += notPersisted;
+          }
+        }
       } catch (batchErr) {
         hasBatchErrors = true;
         console.error(`[MessageHandler][${salespersonName}] Batch sync write error:`, batchErr.message);
       }
 
       const currentProgress = {
+        messagesReceived: messages.length,
+        messagesWithinWindow: recentMessages.length,
+        messagesSaved,
+        messagesSkippedDuplicate,
+        messagesOutsideWindow,
         messagesProcessed: processedCount,
         customersDiscovered,
         totalMessagesInWindow: recentMessages.length,
@@ -742,6 +814,7 @@ class MessageHandler {
         syncDays,
         lastSyncAt: new Date().toISOString(),
         error: hasBatchErrors ? 'Encountered transient write issues during batch' : null,
+        status: 'Synchronizing recent messages',
       };
 
       await WhatsAppSessionModel.updateSyncStatus(salespersonId, 'Synchronizing recent messages', currentProgress);
@@ -762,6 +835,11 @@ class MessageHandler {
       : 'Synchronization completed';
 
     const finalProgress = {
+      messagesReceived: messages.length,
+      messagesWithinWindow: recentMessages.length,
+      messagesSaved,
+      messagesSkippedDuplicate,
+      messagesOutsideWindow,
       messagesProcessed: processedCount,
       customersDiscovered,
       totalMessagesInWindow: recentMessages.length,
@@ -770,6 +848,7 @@ class MessageHandler {
       syncDays,
       lastSyncAt: new Date().toISOString(),
       error: hasBatchErrors ? 'Partial batch failure during sync' : null,
+      status: finalStatus,
     };
 
     await WhatsAppSessionModel.updateSyncStatus(salespersonId, finalStatus, finalProgress);
@@ -782,7 +861,7 @@ class MessageHandler {
     });
 
     console.log(
-      `[WhatsApp Event][${salespersonName}] ${finalStatus}: ${processedCount} messages, ${customersDiscovered} customers within ${syncDays} days.`
+      `[WhatsApp Event][${salespersonName}] ${finalStatus}: ${messagesSaved} saved, ${messagesSkippedDuplicate} duplicates skipped, ${messagesOutsideWindow} outside window, ${customersDiscovered} customers within ${syncDays} days.`
     );
   }
 

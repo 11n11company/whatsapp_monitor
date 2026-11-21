@@ -205,19 +205,13 @@ class BaileysWhatsAppProvider extends WhatsAppProvider {
         auth: authState.state,
         printQRInTerminal: false, // Security: Never print raw QR code in console logs
         logger: this.logger,     // Security: Suppress credential traces
-        browser: Browsers.ubuntu('Chrome'),
+        browser: Browsers.ubuntu('Desktop'),
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
         keepAliveIntervalMs: 25000,
         emitOwnEvents: true,
-        syncFullHistory: false, // Restrict to recent history; drop multi-year archives
-        shouldSyncHistoryMessage: (historyMsg) => {
-          const fullType = baileys.proto?.HistorySync?.HistorySyncType?.FULL;
-          if (fullType !== undefined && historyMsg?.syncType === fullType) {
-            return false;
-          }
-          return true;
-        },
+        syncFullHistory: true, // Request full companion sync so phone sends message history
+        shouldSyncHistoryMessage: () => true, // Accept all history sync payloads; backend applies the 72h cutoff
       });
 
       sessionContext.socket = socket;
@@ -241,6 +235,12 @@ class BaileysWhatsAppProvider extends WhatsAppProvider {
       // Event: History sync from mobile phone (Existing contacts, chats, messages, LID mappings)
       socket.ev.on('messaging-history.set', async (history) => {
         try {
+          const msgCount = Array.isArray(history?.messages) ? history.messages.length : 0;
+          const chatCount = Array.isArray(history?.chats) ? history.chats.length : 0;
+          const contactCount = Array.isArray(history?.contacts) ? history.contacts.length : 0;
+          console.log(
+            `[Baileys][${salespersonName}] messaging-history.set event received: ${msgCount} messages, ${chatCount} chats, ${contactCount} contacts (syncType: ${history?.syncType})`
+          );
           await MessageHandler.handleMessagingHistory(handlerContext, history);
         } catch (err) {
           console.error(`[Baileys][${salespersonName}] Error in messaging-history.set:`, err.message);
