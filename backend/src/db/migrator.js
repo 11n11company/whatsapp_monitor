@@ -15,6 +15,36 @@ const REQUIRED_TABLES = [
   'lid_mappings',
 ];
 
+function findSchemaFile() {
+  const candidates = [
+    path.resolve(__dirname, 'schema.sql'),
+    path.resolve(__dirname, '../../../database/schema.sql'),
+    path.resolve(__dirname, '../../database/schema.sql'),
+    path.resolve(process.cwd(), 'database/schema.sql'),
+    path.resolve(process.cwd(), '../database/schema.sql'),
+    path.resolve(process.cwd(), 'src/db/schema.sql'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+function findMigrationsDir() {
+  const candidates = [
+    path.resolve(__dirname, 'migrations'),
+    path.resolve(__dirname, '../../../database/migrations'),
+    path.resolve(__dirname, '../../database/migrations'),
+    path.resolve(process.cwd(), 'database/migrations'),
+    path.resolve(process.cwd(), '../database/migrations'),
+    path.resolve(process.cwd(), 'src/db/migrations'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
 class Migrator {
   /**
    * Ensure schema_migrations tracking table exists
@@ -71,18 +101,17 @@ class Migrator {
     try {
       await this.initMigrationsTable(client);
       const existingTables = await this.getExistingTables(client);
-      const appliedMigrations = await this.getAppliedMigrations(client);
 
-      const schemaPath = path.resolve(__dirname, '../../../database/schema.sql');
-      const migrationsDir = path.resolve(__dirname, '../../../database/migrations');
+      const schemaPath = findSchemaFile();
+      const migrationsDir = findMigrationsDir();
 
-      // Check if core tables exist. If admin_users does not exist, run schema.sql first
+      // Check if core tables exist. If admin_users does not exist, run schema.sql
       const hasCoreTables = existingTables.includes('admin_users') && existingTables.includes('whatsapp_sessions');
 
       if (!hasCoreTables) {
-        console.log('[Migrator] Core tables missing. Applying baseline schema from database/schema.sql...');
-        if (!fs.existsSync(schemaPath)) {
-          throw new Error(`Schema file not found at: ${schemaPath}`);
+        console.log('[Migrator] Core tables missing. Applying baseline schema...');
+        if (!schemaPath || !fs.existsSync(schemaPath)) {
+          throw new Error('Baseline schema.sql file could not be found in any candidate directory.');
         }
 
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
@@ -109,16 +138,17 @@ class Migrator {
         console.log('[Migrator] Baseline schema created successfully.');
       }
 
-      // Check and apply any incremental migration files from database/migrations/
-      if (fs.existsSync(migrationsDir)) {
+      // Check and apply any incremental migration files from migrations directory
+      if (migrationsDir && fs.existsSync(migrationsDir)) {
         const migrationFiles = fs
           .readdirSync(migrationsDir)
           .filter((f) => f.endsWith('.sql'))
           .sort();
 
+        const currentApplied = await this.getAppliedMigrations(client);
+
         for (const file of migrationFiles) {
-          const isApplied = (await this.getAppliedMigrations(client)).includes(file);
-          if (!isApplied) {
+          if (!currentApplied.includes(file)) {
             console.log(`[Migrator] Applying incremental migration: ${file}...`);
             const migrationSql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
             await client.query('BEGIN');
@@ -191,11 +221,18 @@ class Migrator {
       const existingTables = await this.getExistingTables(client);
       const missingTables = REQUIRED_TABLES.filter((t) => !existingTables.includes(t));
 
-      const adminCountRes = await client.query('SELECT COUNT(*) AS count FROM admin_users;');
-      const adminCount = parseInt(adminCountRes.rows[0]?.count || '0', 10);
+      let adminCount = 0;
+      let sessionCount = 0;
 
-      const sessionCountRes = await client.query('SELECT COUNT(*) AS count FROM whatsapp_sessions;');
-      const sessionCount = parseInt(sessionCountRes.rows[0]?.count || '0', 10);
+      if (existingTables.includes('admin_users')) {
+        const adminCountRes = await client.query('SELECT COUNT(*) AS count FROM admin_users;');
+        adminCount = parseInt(adminCountRes.rows[0]?.count || '0', 10);
+      }
+
+      if (existingTables.includes('whatsapp_sessions')) {
+        const sessionCountRes = await client.query('SELECT COUNT(*) AS count FROM whatsapp_sessions;');
+        sessionCount = parseInt(sessionCountRes.rows[0]?.count || '0', 10);
+      }
 
       return {
         verified: missingTables.length === 0 && adminCount > 0,
