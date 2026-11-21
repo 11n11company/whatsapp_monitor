@@ -32,10 +32,21 @@ async function startServer() {
     console.log('========================================================\n');
   });
 
-  // Test database connection and recover sessions
+  // Test database connection, ensure schema migrations & seed, and recover sessions
   try {
     const dbRes = await db.testConnection();
     if (dbRes.connected) {
+      // Ensure all tables and pending migrations are executed before session recovery
+      const Migrator = require('./db/migrator');
+      try {
+        await Migrator.runMigrations();
+        await Migrator.seedAdmin();
+        const verification = await Migrator.verifySchema();
+        console.log(`[Server] Schema verified: ${verification.existingTables.length} tables present, admin seeded (count: ${verification.adminCount}).`);
+      } catch (migErr) {
+        console.error('[Server] Schema migration error on boot:', migErr.message);
+      }
+
       // Recover active WhatsApp sessions across server restarts
       await ConnectionManager.recoverSessions().catch((err) => {
         console.error('[ConnectionManager] Session recovery warning:', err.message);
