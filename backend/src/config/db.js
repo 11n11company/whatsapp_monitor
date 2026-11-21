@@ -74,9 +74,9 @@ async function testConnection() {
     dbError = err.message;
     const isProduction = config.env === 'production' || process.env.DB_REQUIRE_REAL === 'true';
     if (isProduction) {
-      console.error(`[FATAL DATABASE ERROR] PostgreSQL connection failed in production mode: ${err.message}`);
-      console.error('[FATAL DATABASE ERROR] In-memory fallback is strictly disabled in production. Terminating startup.');
-      throw new Error(`Database connection failed in production mode: ${err.message}`);
+      console.error(`[DATABASE ERROR] PostgreSQL connection failed in production mode: ${err.message}`);
+      console.error('[DATABASE NOTICE] In-memory fallback is disabled in production. Ensure DATABASE_URL is configured.');
+      return { connected: false, error: err.message, fallback: false };
     }
     console.warn(`[DB WARNING] PostgreSQL connection failed: ${err.message}`);
     console.warn('[DB WARNING] Operating with in-memory resilient fallback for development.');

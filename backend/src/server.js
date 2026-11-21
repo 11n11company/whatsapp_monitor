@@ -10,9 +10,6 @@ async function startServer() {
   console.log(`Environment: ${config.env}`);
   console.log(`Configured Port: ${config.port}`);
 
-  // Test database connection
-  await db.testConnection();
-
   // Validate production security configuration
   const securityIssues = config.validateProductionConfig();
   if (securityIssues.length > 0) {
@@ -22,16 +19,28 @@ async function startServer() {
     console.warn('========================================================');
   }
 
-  // Recover active WhatsApp sessions across server restarts
-  await ConnectionManager.recoverSessions().catch((err) => {
-    console.error('[ConnectionManager] Session recovery warning:', err.message);
-  });
-
+  // Start HTTP server immediately so cloud platforms (Railway, Render, AWS) never 502
   const server = app.listen(config.port, () => {
     console.log(`[Server] WhatsApp Monitor Backend running on http://localhost:${config.port}`);
     console.log(`[Server] Health check available at: http://localhost:${config.port}/api/health`);
     console.log('========================================================\n');
   });
+
+  // Test database connection and recover sessions
+  try {
+    const dbRes = await db.testConnection();
+    if (dbRes.connected) {
+      // Recover active WhatsApp sessions across server restarts
+      await ConnectionManager.recoverSessions().catch((err) => {
+        console.error('[ConnectionManager] Session recovery warning:', err.message);
+      });
+    } else {
+      console.warn(`[Server] Database not connected on boot: ${dbRes.error || 'Check DATABASE_URL'}`);
+      console.log('[Server] Health endpoint /api/health is live and reporting status.');
+    }
+  } catch (err) {
+    console.error('[Server] Database initialization warning:', err.message);
+  }
 
   // Graceful shutdown handling
   const shutdown = async (signal) => {
