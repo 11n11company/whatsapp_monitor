@@ -40,18 +40,33 @@ app.use(
       // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
 
+      // If wildcard is configured, permit any origin (dynamically reflected for credentials support)
+      if (config.corsOrigin === '*') {
+        return callback(null, true);
+      }
+
+      const configuredOrigins = config.corsOrigin
+        ? config.corsOrigin.split(',').map((o) => o.trim())
+        : [];
+
       const allowedOrigins = [
-        config.corsOrigin,
+        ...configuredOrigins,
         'http://localhost:5173',
         'http://127.0.0.1:5173',
         'http://localhost:3000',
       ];
 
-      if (allowedOrigins.includes(origin)) {
+      // Allow exact match or any Vercel deployment (*.vercel.app)
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app')
+      ) {
         return callback(null, true);
       }
+
       if (config.env === 'production') {
-        return callback(new Error('CORS policy: This origin is not allowed by Access-Control-Allow-Origin'));
+        console.warn(`[CORS Blocked] Origin not allowed: ${origin}`);
+        return callback(new Error(`CORS policy: Origin ${origin} is not allowed by Access-Control-Allow-Origin`));
       }
       return callback(null, true); // Dev-friendly fallback for local testing
     },
